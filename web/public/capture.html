@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ayaka-hand — Kamera</title>
+    <style>
+      :root {
+        --surface: #f5f4f1; --card: #fff; --text: #1d232a; --muted: #6b7178;
+        --primary: #2f6f8f; --danger: #b3413a; --radius: 12px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --surface: #14181d; --card: #1b2128; --text: #e8e6e1; --muted: #9aa1a9; --primary: #5aa9c9; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; background: var(--surface); color: var(--text);
+        font: 16px/1.5 system-ui, sans-serif; padding: 1rem;
+        display: flex; flex-direction: column; gap: 1rem; align-items: center;
+      }
+      h1 { font-size: clamp(1.1rem, 5vw, 1.5rem); margin: 0.5rem 0 0; text-align: center; }
+      .card {
+        width: 100%; max-width: 520px; background: var(--card); border-radius: var(--radius);
+        padding: 1rem; box-shadow: 0 2px 12px rgb(0 0 0 / 12%);
+      }
+      .capture {
+        display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+        width: 100%; min-height: 120px; margin-bottom: 1rem;
+        background: var(--primary); color: #fff; border-radius: var(--radius);
+        font-size: 1.25rem; font-weight: 600; cursor: pointer;
+        transition: transform 120ms ease-out; user-select: none;
+      }
+      .capture:active { transform: scale(0.98); }
+      .capture input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+      .cam-icon { font-size: 1.6rem; }
+      .thumb-wrap { width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius); overflow: hidden;
+        background: color-mix(in oklab, var(--surface) 70%, var(--primary)); display: grid; place-items: center; }
+      #thumb { width: 100%; height: 100%; object-fit: contain; }
+      #thumb:not([src]) { display: none; }
+      .thumb-empty { color: var(--muted); font-size: 0.9rem; }
+      .stats { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap; }
+      #count { color: var(--muted); font-size: 0.9rem; min-height: 44px; display: flex; align-items: center; }
+      #result { font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+      #error { color: var(--danger); min-height: 1.5rem; font-size: 0.9rem; }
+      .target { color: var(--muted); font-size: 0.75rem; word-break: break-all; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <h1>ayaka-hand — Kamera</h1>
+    <div class="card">
+      <label class="capture">
+        <span class="cam-icon">📷</span>
+        <span>Foto aufnehmen</span>
+        <input id="shot" type="file" accept="image/*" capture="environment" />
+      </label>
+      <div class="thumb-wrap">
+        <img id="thumb" alt="Letztes Foto" />
+        <span class="thumb-empty" id="thumb-empty">noch kein Foto</span>
+      </div>
+      <div class="stats">
+        <div id="count">Gesendet: 0</div>
+        <div id="result">–</div>
+      </div>
+      <div id="error"></div>
+    </div>
+    <div class="target" id="target-line"></div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(location.search);
+        var to = (params.get('to') || 'http://' + location.hostname + ':27461').replace(/\/+$/, '');
+        document.getElementById('target-line').textContent = '→ ' + to + '/snap';
+
+        var input = document.getElementById('shot');
+        var thumb = document.getElementById('thumb');
+        var thumbEmpty = document.getElementById('thumb-empty');
+        var countEl = document.getElementById('count');
+        var resultEl = document.getElementById('result');
+        var errorEl = document.getElementById('error');
+        var sent = 0;
+
+        function describe(data) {
+          if (data == null) return 'gesendet (keine Antwortdaten)';
+          var dets = Array.isArray(data) ? data : (data.detections || []);
+          if (!dets.length) return 'keine Objekte erkannt';
+          var top = dets.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); })[0];
+          var pct = Math.round((top.score || 0) * 100);
+          var ms = (data && data.ms != null) ? ' · ' + Math.round(data.ms) + ' ms' : '';
+          return top.label + ' ' + pct + '%' + ms;
+        }
+
+        input.addEventListener('change', function () {
+          var file = input.files && input.files[0];
+          if (!file) return;
+          errorEl.textContent = '';
+          resultEl.textContent = 'sende…';
+          thumb.src = URL.createObjectURL(file);
+          thumbEmpty.style.display = 'none';
+
+          fetch(to + '/snap', {
+            method: 'POST',
+            headers: { 'Content-Type': file.type || 'image/jpeg' },
+            body: file
+          }).then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            sent += 1;
+            countEl.textContent = 'Gesendet: ' + sent;
+            return res.json().catch(function () { return null; });   // Server darf leer antworten
+          }).then(function (data) {
+            resultEl.textContent = describe(data);
+          }).catch(function (e) {
+            errorEl.textContent = 'Fehler: ' + (e && e.message ? e.message : String(e));
+            resultEl.textContent = '–';
+          }).then(function () {
+            input.value = '';                                        // gleiches Foto erneut aufnehmbar machen
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

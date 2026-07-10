@@ -1,0 +1,34 @@
+cup
+bottle
+wine glass
+bowl
+banana
+apple
+orange
+carrot
+donut
+mouse
+remote
+cell phone
+book
+vase
+scissors
+teddy bear
+toothbrush
+sports ball
+frisbee
+knife
+fork
+spoon
+keyboard
+laptop
+mug
+drinking glass
+pen
+key
+headphone case
+egg
+plate
+jar
+tv
+microwave

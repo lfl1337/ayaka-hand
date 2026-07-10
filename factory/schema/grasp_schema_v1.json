@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "object_label":   { "type": "string" },
+    "grip":           { "type": "string", "enum": ["power", "lateral", "pinch", "tripod", "no_grasp"] },
+    "force":          { "type": "string", "enum": ["delicate", "firm"] },
+    "contact_region": { "type": "string", "enum": ["handle", "body", "rim", "edge", "top", "unknown"] },
+    "contact_point":  { "type": "object",
+                        "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+                        "required": ["x", "y"], "additionalProperties": false },
+    "hazards":        { "type": "array",
+                        "items": { "type": "string", "enum": ["hot", "sharp", "fragile", "full", "heavy", "slippery"] } },
+    "rationale":      { "type": "string" }
+  },
+  "required": ["object_label", "grip", "force", "contact_region", "contact_point", "hazards", "rationale"],
+  "additionalProperties": false
+}
