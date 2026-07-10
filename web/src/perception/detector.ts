@@ -1,6 +1,7 @@
 // web/src/perception/detector.ts
 import { env, pipeline, type ObjectDetectionPipeline, type ProgressInfo } from '@huggingface/transformers';
 import { CONFIG } from '../config';
+import { ORT_NUM_THREADS, ortWasmPaths } from './ortEnv';
 import type { Detection } from './ranking';
 
 export type DetectorState = 'idle' | 'loading' | 'ready' | 'failed';
@@ -24,18 +25,6 @@ function setStatus(state: DetectorState, pct?: number, msg?: string): void {
   onDetectorProgress?.({ state, pct, msg });
 }
 
-/** Spiegelbild von transformers.js' isSafari(): der WebGPU-Build lädt zur Laufzeit auf Safari/WebKit
- *  den plain-, sonst den asyncify-WASM. Wir wählen dieselbe Datei aus /ort/, damit self-hosted
- *  genau der (per CDN erprobte) Build geliefert wird — auf iPhone plain, auf Android/Chrome asyncify. */
-function isAppleWebkit(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  const isAppleVendor = (navigator.vendor || '').indexOf('Apple') > -1;
-  const notOtherBrowser = !/CriOS|FxiOS|EdgiOS|OPiOS|mercury|brave/i.test(ua)
-    && !ua.includes('Chrome') && !ua.includes('Android');
-  return isAppleVendor && notOtherBrowser;
-}
-
 let detPromise: Promise<ObjectDetectionPipeline> | null = null;
 
 /** D-FINE-Small (Apache-2.0) via transformers.js, WASM-Backend, Modell-Dateien SELF-HOSTED
@@ -50,18 +39,13 @@ export function loadDetector(): Promise<ObjectDetectionPipeline> {
   env.localModelPath = CONFIG.detector.modelPath;
   // ORT-WASM-Runtime SELF-HOSTED unter /ort/ (kein CDN beim Judge): transformers.js zeigt wasmPaths
   // sonst auf jsdelivr → offline ein sofortiger Init-Fail bei 0 % (genau das Live-Gate-Symptom).
-  // Als Objekt {wasm,mjs} statt String, weil transformers.js damit den Binary vorab same-origin cached
-  // UND wir so Safaris plain- vs. asyncify-Wahl exakt nachbilden. numThreads=1: ohne crossOriginIsolation
-  // (plain HTTP) gibt es kein SharedArrayBuffer → Single-Thread-WASM ist die sichere Baseline.
+  // Datei-Wahl + Thread-Baseline leben GETEILT in ortEnv.ts (identisch mit student.ts, kein Drift).
   const wasm = env.backends.onnx.wasm as {
     wasmPaths?: string | { wasm: string; mjs: string };
     numThreads?: number;
   };
-  const base = '/ort/';
-  wasm.wasmPaths = isAppleWebkit()
-    ? { mjs: `${base}ort-wasm-simd-threaded.mjs`, wasm: `${base}ort-wasm-simd-threaded.wasm` }
-    : { mjs: `${base}ort-wasm-simd-threaded.asyncify.mjs`, wasm: `${base}ort-wasm-simd-threaded.asyncify.wasm` };
-  wasm.numThreads = 1;
+  wasm.wasmPaths = ortWasmPaths();
+  wasm.numThreads = ORT_NUM_THREADS;
   setStatus('loading', 0);
   const p = (pipeline('object-detection', 'dfine_s_coco', {
     dtype: 'q8',                // → onnx/model_quantized.onnx (~11 MB int8), wie beim rtdetr-Export

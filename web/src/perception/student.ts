@@ -4,6 +4,7 @@
 // Ausfall-Semantik: JEDER Fehler => null; der Aufrufer fällt auf die Lookup zurück.
 import * as ort from 'onnxruntime-web';
 import type { Force, Grip } from '../types';
+import { ORT_NUM_THREADS, ortWasmPaths } from './ortEnv';
 import type { Detection } from './ranking';
 import { IMAGENET_MEAN, IMAGENET_STD, STUDENT_FORCES, STUDENT_GRIPS, cropPlan, softmax } from './studentGeom';
 
@@ -11,22 +12,9 @@ const MODEL_URL = '/models/student/student.onnx';
 const SIZE = 160;
 
 // Self-hosted ORT-WASM (Judge-Regel: Demo darf nicht am CDN hängen). Der Student teilt sich den
-// onnxruntime-web-Backend mit dem Detektor — welches Modul zuerst lädt, setzt die Pfade. Beide MÜSSEN
-// exakt DIESELBE Datei-Wahl treffen (Safari plain vs. asyncify), sonst lädt der zweite Init einen
-// inkompatiblen Build. Spiegelt detector.ts (isAppleWebkit + exakte /ort/-Dateipaare) bewusst wider.
-function isAppleWebkit(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  const isAppleVendor = (navigator.vendor || '').indexOf('Apple') > -1;
-  const notOtherBrowser = !/CriOS|FxiOS|EdgiOS|OPiOS|mercury|brave/i.test(ua)
-    && !ua.includes('Chrome') && !ua.includes('Android');
-  return isAppleVendor && notOtherBrowser;
-}
-const ORT_BASE = '/ort/';
-ort.env.wasm.wasmPaths = isAppleWebkit()
-  ? { mjs: `${ORT_BASE}ort-wasm-simd-threaded.mjs`, wasm: `${ORT_BASE}ort-wasm-simd-threaded.wasm` }               // iPhone/WebKit: plain
-  : { mjs: `${ORT_BASE}ort-wasm-simd-threaded.asyncify.mjs`, wasm: `${ORT_BASE}ort-wasm-simd-threaded.asyncify.wasm` }; // Android/Chrome: asyncify
-ort.env.wasm.numThreads = 1;        // kein COOP/COEP nötig (statisches Hosting)
+// onnxruntime-web-Backend mit dem Detektor — die Datei-Wahl lebt deshalb GETEILT in ortEnv.ts.
+ort.env.wasm.wasmPaths = ortWasmPaths();
+ort.env.wasm.numThreads = ORT_NUM_THREADS;
 
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
 let ready = false;

@@ -206,6 +206,22 @@ function apply(out: ReturnType<GraspFsm['dispatch']>): void {
   beam('fsm', { state: out.state, command: out.command, note: out.note });
 }
 
+/** Gemeinsamer Abschluss JEDES Hypothesen-Pfads (lokaler Snapshot + Studio-Frame): Hero-Zeile
+ *  samt Ton, Meter/Tiles, Telemetrie, Episoden-Neustart, FSM-Dispatch, Timeout-Marker. Vorher
+ *  copy-pasted in runSnapshot und applyStudioDetections — jede Rendering-Änderung musste zweimal
+ *  gemacht werden. errorText ersetzt die Ergebnis-Zeile (Detektor-Fehlerpfad). */
+function landHypothesis(h: GraspHypothesis, errorText?: string): void {
+  hypothesisEl.textContent = errorText
+    ?? `${h.objectLabel ?? '?'} → ${h.grip}/${h.force} @ ${h.confidence.toFixed(2)}${h.via === 'cnn' ? ' · CNN' : ''}`;
+  hypothesisEl.dataset.tone = errorText || h.objectLabel === 'error' ? 'warn' : 'accent';   // Fehler nie im Hero-Gold
+  hypothesisEl.title = '';                                       // frisches Ergebnis → alten Cortex/Edge-Tooltip löschen
+  onHypothesis(h);                                               // Meter + Griff-Tile (+ zuvor gesetzte detectorMs-Tile)
+  beam('hypothesis', { label: h.objectLabel, grip: h.grip, force: h.force, conf: Number(h.confidence.toFixed(3)), via: h.via });
+  beginEpisode();                                                // GRASP? → erst öffnen; Replay neu → GO landet nach dem Reach
+  apply(fsm.dispatch({ type: 'HYPOTHESIS', h }, performance.now()));
+  lastHypothesisAt = performance.now();                          // Binding #2: ARMED/PRESHAPE-Timeout ab jetzt takten
+}
+
 /** Neue Foto-Episode (Handy-Frame ODER lokaler Snapshot = expliziter Nutzer-Akt für einen neuen Griff):
  *  hält die Hand gerade in GRASP, wird sie zuerst geöffnet (RELEASE_CMD) — die Drop-Safety gegen
  *  Vision-Rauschen bleibt intakt, nur der bewusste Foto-Akt darf lösen. Dann das EMG-Replay neu starten,
@@ -249,19 +265,10 @@ async function runSnapshot(source: string, draw: (ctx: CanvasRenderingContext2D)
     const res = await analyzeSnapshot(canvas);
     tiles.detectorMs = performance.now() - t0;                    // Wall-Time um detect()//infer (nach Warmup ≈ reine Inferenz)
     const h = res.hypothesis;
-    hypothesisEl.textContent = detectorStatus.state === 'failed'
-      ? detectorErrorText(detectorStatus.msg)                     // konkrete Meldung statt generischem Text (Listener kann von analyzeSnapshot überschrieben werden)
-      : `${h.objectLabel ?? '?'} → ${h.grip}/${h.force} @ ${h.confidence.toFixed(2)}${h.via === 'cnn' ? ' · CNN' : ''}`;
-    hypothesisEl.dataset.tone = detectorStatus.state === 'failed' || h.objectLabel === 'error'
-      ? 'warn' : 'accent';                                        // Ergebnis = Hero-Gold; Detektor- UND Remote-fail-safe-Fehler = Warnton
     drawOverlay(ctx, res.ranked, res.chosenIdx, h.contactPoint);  // Tracking-Boxen NACH dem Bild aufs #snap-Canvas
     canvas.hidden = false;                                        // annotiertes Standbild sichtbar (im lokalen Demo sonst Offscreen-Buffer)
-    applyGatesForDetector(activeGating, res.detector ?? 'rtdetr'); // Gates aufs tatsächliche Backend kalibrieren: lokal = rtdetr, Studio-/infer meist OVD (Scores liegen tiefer)
-    onHypothesis(h);                                              // Meter + Griff-Tile + Detektor-Tile
-    beam('hypothesis', { label: h.objectLabel, grip: h.grip, force: h.force, conf: Number(h.confidence.toFixed(3)), via: h.via });
-    beginEpisode();                                               // GRASP? → erst öffnen; Replay neu → GO landet nach dem Reach
-    apply(fsm.dispatch({ type: 'HYPOTHESIS', h }, performance.now()));
-    lastHypothesisAt = performance.now();                         // Binding #2: ARMED/PRESHAPE-Timeout ab jetzt takten
+    applyGatesForDetector(activeGating, res.detector ?? 'rtdetr'); // Gates aufs tatsächliche Backend kalibrieren — VOR landHypothesis (Meter liest activeGating)
+    landHypothesis(h, detectorStatus.state === 'failed' ? detectorErrorText(detectorStatus.msg) : undefined);
   } finally {
     busy = false; refreshInputs();
   }
@@ -503,16 +510,9 @@ async function applyStudioDetections(dets: Detection[], w: number, h: number, ms
     return null;
   }
   const h2 = res.hypothesis;
-  hypothesisEl.textContent = `${h2.objectLabel ?? '?'} → ${h2.grip}/${h2.force} @ ${h2.confidence.toFixed(2)}${h2.via === 'cnn' ? ' · CNN' : ''}`;
-  hypothesisEl.dataset.tone = 'accent';
-  hypothesisEl.title = '';                                         // frischer Frame → evtl. alten Cortex/Edge-Tooltip löschen
   drawOverlay(snap.getContext('2d')!, res.ranked, res.chosenIdx, h2.contactPoint, lastCortexLabel); // Boxen NACH dem Frame-Bild; Cortex-Chip erst nach dem Cortex-Event
-  if (ms != null) tiles.detectorMs = ms;                           // Detektor-Tile aus der Frame-ms des Servers
-  onHypothesis(h2);
-  beam('hypothesis', { label: h2.objectLabel, grip: h2.grip, force: h2.force, conf: Number(h2.confidence.toFixed(3)), via: h2.via });
-  beginEpisode();                                                  // GRASP? → erst öffnen; Replay neu → GO landet nach dem Reach (wie der lokale Snapshot)
-  apply(fsm.dispatch({ type: 'HYPOTHESIS', h: h2 }, performance.now()));
-  lastHypothesisAt = performance.now();                            // wie runSnapshot: ARMED-Timeout ab jetzt takten
+  if (ms != null) tiles.detectorMs = ms;                           // Detektor-Tile aus der Frame-ms des Servers (rendert in landHypothesis)
+  landHypothesis(h2);
   lastEdge = { label: h2.objectLabel ?? '?', grip: h2.grip };      // Basis der Edge→Cortex-Vergleichszeile
   if (cortexOn) renderCortexPending();                             // "Cortex denkt…" bis das Cortex-Event landet
   return { ranked: res.ranked, chosenIdx: res.chosenIdx, contactPoint: h2.contactPoint };
