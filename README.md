@@ -204,7 +204,7 @@ Nothing in this repository should be read as a claim that ayaka-hand keeps a use
 - **Secrets** are read from a `.env` at the repo root (see `.env.example`). Never commit real keys.
 - **Browser WASM path**: the ONNX-Runtime loader has a separate code path for Apple WebKit (Safari uses the plain WASM build; other browsers use the asyncify build). Both are bundled, but Safari/iOS is the most fragile target — verify there first.
 - **Detector weights** for the server (LLMDet) are downloaded at runtime, not vendored.
-- The training/labeling story targets NVIDIA (RTX 5090, cu128) and AMD (MI300X / ROCm) GPUs; CPU inference works but is slow.
+- Training/labeling actually ran on a local NVIDIA RTX 5090 (cu128); the pipeline's vLLM dialect also targets AMD (MI300X / ROCm) as a deployment path, not yet exercised on real MI300X hardware. CPU inference works but is slow.
 
 ## License
 
