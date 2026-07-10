@@ -96,6 +96,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;              // filmische Ku
 renderer.toneMappingExposure = 1.05;
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;   // PBR-Reflexe ohne HDR-Asset
+pmrem.dispose();                                                 // Einmal-Werkzeug: interne Render-Targets/Shader sofort freigeben (Textur bleibt gültig)
 viewport.appendChild(renderer.domElement);
 hand.attachTo(scene);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -144,14 +145,29 @@ setDetectorProgressListener(({ state, pct, msg }) => {
 // analyzeDetailedWithStudent fällt via studentReady()===false ohnehin auf den Lookup zurück (die FSM merkt nichts).
 const edgeBadge = $('edge-badge');
 edgeBadge.dataset.tone = 'muted';                                 // Ladephase neutral; ok/warn erst nach dem Ergebnis
+const studentWatchdog = window.setTimeout(() => {                 // hängender ONNX-Fetch (Promise settelt nie) → Badge darf nicht ewig „lädt…" zeigen;
+  edgeBadge.textContent = '2,2-Mio-Reflex: Lookup-Baseline (Student lädt noch…)';   // der Lookup-Reflexpfad läuft derweil längst (studentReady()-Fallback)
+  edgeBadge.dataset.tone = 'warn';
+  beam('student-load-timeout');
+}, 15_000);
 void loadStudent().then(
-  () => { edgeBadge.textContent = '2,2-Mio-Reflex: CNN aktiv'; edgeBadge.dataset.tone = 'ok'; },
+  () => { window.clearTimeout(studentWatchdog); edgeBadge.textContent = '2,2-Mio-Reflex: CNN aktiv'; edgeBadge.dataset.tone = 'ok'; },
   (err: unknown) => {
+    window.clearTimeout(studentWatchdog);
     edgeBadge.textContent = '2,2-Mio-Reflex: Lookup-Baseline (Fallback)';
     edgeBadge.dataset.tone = 'warn';
     beam('student-load-error', { msg: String((err as { message?: unknown })?.message ?? err) });
   },
 );
+// Hand-Modell-Fehler (threeHand meldet per CustomEvent): sichtbar machen statt nur Konsole —
+// sonst steht beim Judging eine leere Bühne ohne jedes Signal, warum.
+window.addEventListener('ayaka:hand-model-error', (e) => {
+  const msg = String((e as CustomEvent).detail ?? 'unbekannt');
+  beam('hand-model-error', { msg });
+  const fsmBadge = $('fsm-state');
+  fsmBadge.textContent = `Hand-Modell fehlt: ${msg.slice(0, 60)}`;
+  fsmBadge.dataset.tone = 'warn';
+});
 
 // --- Trigger + Chart ---
 const chart = new StripChart(($('emg') as HTMLCanvasElement).getContext('2d')!, CONFIG.onset.tHigh, CONFIG.onset.tLow);
@@ -226,6 +242,9 @@ async function runSnapshot(source: string, draw: (ctx: CanvasRenderingContext2D)
     log.mark('snapshot', performance.now());
     log.mark('control_action', performance.now());                // der EINE Klick
     if (detectorStatus.state !== 'loading') hypothesisEl.textContent = 'analysiere…'; // Lade-% hat Vorrang
+    lastCortexLabel = undefined;                                  // neuer Snapshot → alten Cortex-Vergleichschip zurücksetzen
+    lastFrameTs = undefined;                                      // VOR dem await: invalidiert in-flight Studio-Inferenz sofort — deren
+                                                                  // post-await-Guard darf das frische lokale Foto nicht mehr überstempeln
     const t0 = performance.now();
     const res = await analyzeSnapshot(canvas);
     tiles.detectorMs = performance.now() - t0;                    // Wall-Time um detect()//infer (nach Warmup ≈ reine Inferenz)
@@ -233,14 +252,13 @@ async function runSnapshot(source: string, draw: (ctx: CanvasRenderingContext2D)
     hypothesisEl.textContent = detectorStatus.state === 'failed'
       ? detectorErrorText(detectorStatus.msg)                     // konkrete Meldung statt generischem Text (Listener kann von analyzeSnapshot überschrieben werden)
       : `${h.objectLabel ?? '?'} → ${h.grip}/${h.force} @ ${h.confidence.toFixed(2)}${h.via === 'cnn' ? ' · CNN' : ''}`;
-    hypothesisEl.dataset.tone = detectorStatus.state === 'failed' ? 'warn' : 'accent';   // Ergebnis = Hero-Gold, Fehler = Warnton
+    hypothesisEl.dataset.tone = detectorStatus.state === 'failed' || h.objectLabel === 'error'
+      ? 'warn' : 'accent';                                        // Ergebnis = Hero-Gold; Detektor- UND Remote-fail-safe-Fehler = Warnton
     drawOverlay(ctx, res.ranked, res.chosenIdx, h.contactPoint);  // Tracking-Boxen NACH dem Bild aufs #snap-Canvas
     canvas.hidden = false;                                        // annotiertes Standbild sichtbar (im lokalen Demo sonst Offscreen-Buffer)
     applyGatesForDetector(activeGating, res.detector ?? 'rtdetr'); // Gates aufs tatsächliche Backend kalibrieren: lokal = rtdetr, Studio-/infer meist OVD (Scores liegen tiefer)
     onHypothesis(h);                                              // Meter + Griff-Tile + Detektor-Tile
     beam('hypothesis', { label: h.objectLabel, grip: h.grip, force: h.force, conf: Number(h.confidence.toFixed(3)), via: h.via });
-    lastCortexLabel = undefined;                                  // neuer Snapshot → evtl. alten Cortex-Vergleichschip zurücksetzen (Datei-Pick auch im Studio möglich)
-    lastFrameTs = undefined;                                      // lokale Episode ersetzt das SSE-Frame → nachzügelnde Cortex-Ergebnisse alter Frames verwerfen
     beginEpisode();                                               // GRASP? → erst öffnen; Replay neu → GO landet nach dem Reach
     apply(fsm.dispatch({ type: 'HYPOTHESIS', h }, performance.now()));
     lastHypothesisAt = performance.now();                         // Binding #2: ARMED/PRESHAPE-Timeout ab jetzt takten
@@ -333,6 +351,7 @@ function renderCortexResult(r: CortexResult): void {
 function handleCortex(msg: CortexMessage): void {
   if (msg.ts != null && msg.ts !== lastFrameTs) {              // Cortex eines ÄLTEREN Frames (neue Episode läuft schon) → verwerfen, sonst re-preshaped der alte Griff die neue Episode
     beam('cortex-stale', { ts: msg.ts });
+    if (cortexBody.querySelector('.cortex-pending')) renderCortexIdle();   // hängendes „denkt…" einer toten Episode auflösen statt ewig warten
     return;
   }
   if (!cortexOn) { renderCortexDead(); return; }               // Kill-Switch AUS: Panel tot, kein Dispatch
@@ -341,7 +360,7 @@ function handleCortex(msg: CortexMessage): void {
   renderCortexResult(r);
   beam('cortex', { label: r.object_label, grip: r.grip, force: r.force, hazards: r.hazards });
   lastCortexLabel = r.object_label;                            // Overlay-Vergleichschip: Cortex-Label am gewählten Objekt zeigen
-  redrawStudioOverlay?.();                                     // letztes Frame neu zeichnen → Edge→Cortex-Chip erscheint am Objekt
+  if (!busy) redrawStudioOverlay?.();                          // Redraw stampft #snap-Pixel → nie während einer in-flight lokalen Analyse (Legacy-Frames ohne ts umgehen den Stale-Guard)
   const h: GraspHypothesis = {
     grip: r.grip, force: r.force, confidence: 0.9, source: 'cortex',
     objectLabel: r.object_label, contactRegion: r.contact_region, hazards: r.hazards, rationale: r.rationale,
@@ -406,11 +425,11 @@ if (remoteEndpoint) {
     let msg: StudioFrame | CortexMessage;
     try { msg = JSON.parse(ev.data) as StudioFrame | CortexMessage; }
     catch { beam('studio-frame-error', { msg: 'bad json' }); return; }
-    if (busy) {                                                    // lokaler Snapshot in-flight → weder Frame noch Cortex-Redraw darf die #snap-Pixel stampfen (der CNN liest sie noch)
+    if ((msg as CortexMessage).type === 'cortex') { handleCortex(msg as CortexMessage); return; }   // Cortex stampft keine #snap-Pixel — Redraw ist in handleCortex busy-gated, Staleness via ts-Guard
+    if (busy) {                                                    // lokaler Snapshot in-flight → kein Frame darf die #snap-Pixel stampfen (der CNN liest sie noch)
       beam('studio-frame-busy-drop', { ts: (msg as { ts?: number }).ts });
       return;
     }
-    if ((msg as CortexMessage).type === 'cortex') { handleCortex(msg as CortexMessage); return; }
     const frame = msg as StudioFrame;                              // 'frame' oder (backward-compat) ohne type
     if (frame.ts != null && frame.ts === lastFrameTs) {            // Replay-on-Subscribe nach SSE-Reconnect: schon gesehen → KEINE neue Episode (sonst öffnet ein WLAN-Blip die haltende Hand)
       beam('studio-frame-dup', { ts: frame.ts });
@@ -479,8 +498,8 @@ async function applyStudioDetections(dets: Detection[], w: number, h: number, ms
   log.mark('snapshot', performance.now());
   const snap = $('snap') as HTMLCanvasElement;                     // das Frame liegt schon drin → der Student cropt aus demselben Canvas
   const res = await analyzeDetailedWithStudent(dets, w, h, snap);
-  if (ts != null && ts !== lastFrameTs) {                          // während der Student-Inferenz kam ein NEUERES Frame → dieses Ergebnis ist stale.
-    beam('studio-frame-stale-edge', { ts });                       // VOR jedem post-await Seiteneffekt raus, sonst re-preshaped der alte Griff die neue Episode
+  if ((ts != null && ts !== lastFrameTs) || manualOn) {            // während der Student-Inferenz kam ein NEUERES Frame ODER der Nutzer schaltete manuell → Ergebnis ist stale.
+    beam('studio-frame-stale-edge', { ts, manual: manualOn });     // VOR jedem post-await Seiteneffekt raus, sonst kontaminiert der alte Griff die neue Episode/Baseline
     return null;
   }
   const h2 = res.hypothesis;
@@ -507,6 +526,7 @@ function setMode(on: boolean): void {
   btnCycle.hidden = !on;                                          // Zyklus-Button nur im manuellen Modus
   refreshInputs();                                               // Snapshot-Fluss im manuellen Modus deaktiviert
   hypothesisEl.textContent = on ? 'Manueller Modus — Griff zyklen, dann GO' : '–';
+  hypothesisEl.dataset.tone = 'muted';                           // Ton immer MIT dem Text setzen — sonst klebt das letzte accent/warn am Badge
 }
 $('btn-mode').addEventListener('click', () => setMode(!manualOn));
 btnCycle.addEventListener('click', () => {

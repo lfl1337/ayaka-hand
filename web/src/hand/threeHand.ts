@@ -11,6 +11,15 @@ const FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'] as const;
  *  Bones `{finger}_{glied}`, Materialien by name (shell/joint/lens). Selbes Weltmaß wie das alte Rig. */
 const MODEL_URL = '/models/hand/ayaka-hand.glb';
 
+/** Ladefehler sichtbar machen: Konsole + CustomEvent (main.ts beamt + zeigt Warn-Badge) —
+ *  eine leere Bühne ohne Signal wäre der schlimmste Demo-Fehlermodus. */
+function emitHandError(msg: string): void {
+  console.error('hand-model', msg);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ayaka:hand-model-error', { detail: msg }));
+  }
+}
+
 /** Handfarbe aus dem CSS-Token --hand-color (Light/Dark), einmal beim attach gelesen.
  *  THREE.Color parst den Hex-String direkt; Fallback fürs Headless-Rendering. */
 function handColorFromCss(): THREE.Color {
@@ -128,7 +137,7 @@ export class ThreeHand implements Hand {
           const rest: THREE.Quaternion[] = [];
           for (let s = 0; s < (f === 'thumb' ? 2 : 3); s++) {
             const b = gltf.scene.getObjectByName(`${f}_${s}`);
-            if (!b) { console.error('hand-model', `bone ${f}_${s} missing — Rig unbrauchbar`); return; }
+            if (!b) { emitHandError(`bone ${f}_${s} fehlt — Rig unbrauchbar`); return; }
             chain.push(b); rest.push(b.quaternion.clone());
           }
           chains.push(chain); rests.push(rest);
@@ -137,7 +146,7 @@ export class ThreeHand implements Hand {
         scene.add(gltf.scene);
       },
       undefined,
-      (err) => console.error('hand-model', String((err as { message?: unknown })?.message ?? err)),
+      (err) => emitHandError(String((err as { message?: unknown })?.message ?? err)),
     );
   }
 

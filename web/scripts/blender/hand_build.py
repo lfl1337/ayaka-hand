@@ -112,6 +112,9 @@ def build_hand_mesh():
     # Handgelenk-Sockel nach hinten (−Y): schlank-konisch, Ende eingezogen (rundet unterm Subdiv statt Flachdeckel)
     tube(bm, [(Vector((0, -0.40, 0.01)), 0.225), (Vector((0, -0.53, 0.01)), 0.25),
               (Vector((0, -0.59, 0.01)), 0.16)], radial=12, mat_index=1)
+    # Winding der handgebauten Tubes ist gemischt → Normals konsistent nach außen, sonst cullt
+    # three.js (FrontSide) die Rückseiten weg und die Hand ist unsichtbar (Workbench rendert double-sided).
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     mesh = bpy.data.meshes.new('ayakaHand')
     bm.to_mesh(mesh)
     bm.free()
@@ -145,12 +148,6 @@ def add_camera_ring():
     bpy.ops.mesh.primitive_cylinder_add(radius=0.062, depth=0.05, vertices=20, location=(0, -0.28, z + 0.006))
     lens = bpy.context.object
     return ring, lens
-
-
-def assign_extra_materials(obj, ring_name, lens_name):
-    """Nach dem Join: Ring→joint, Linse→lens (Slots 1/2) über gespeicherte Facezahl-Bereiche geht nicht —
-    stattdessen wurden Ring/Linse VOR dem Join mit eigenem Slot versehen; Blender mappt beim Join um."""
-    del obj, ring_name, lens_name  # Zuordnung passiert beim Join automatisch über Objekt-Materialien
 
 
 def build_armature():
