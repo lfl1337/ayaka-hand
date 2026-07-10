@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import './style.css';
 import { CONFIG } from './config';
 import { GraspFsm, type GatingConfig } from './control/fsm';
@@ -38,6 +39,7 @@ const hudFeedEl = $('hud-feed');
 const tiles: TileModel = { detectorMs: null, reflexMs: null, grip: '–' };
 let feed: FeedItem[] = [];
 renderStates(hudStatesEl, 'IDLE');
+$('fsm-state').dataset.tone = 'muted';                            // Boot-Zustand neutral, bis die FSM erstmals dispatcht
 renderConfMeter(hudConfEl, 0, activeGating.tauSoft, activeGating.tauFull);
 renderTiles(hudTilesEl, tiles);
 renderFeed(hudFeedEl, feed);
@@ -61,6 +63,7 @@ beam('page-load');
 // --- UI-Referenzen + veränderlicher Zustand ---
 const video = $('cam') as HTMLVideoElement;
 const hypothesisEl = $('hypothesis');
+hypothesisEl.dataset.tone = 'muted';           // Boot: kein Ergebnis → Ghost-Chip (untoned Badge reißt AA im Dark)
 const btnSnapshot = $('btn-snapshot') as HTMLButtonElement;
 const filePick = $('file-pick') as HTMLInputElement;
 const btnCycle = $('btn-cycle') as HTMLButtonElement;
@@ -75,25 +78,31 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 4 / 3, 0.1, 50);
 camera.position.set(0, 1.4, 2.15);                               // etwas näher (fov 38) → Hand füllt ~70 % der Höhe
 // Dreipunkt-Licht: Key wirft weiche Schatten (PCFSoft), Fill = Ambient, Rim dim von hinten.
-const key = new THREE.DirectionalLight(0xffffff, 1.6);
+const key = new THREE.DirectionalLight(0xffffff, 1.25);
 key.position.set(2, 3.2, 2.2); key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
 key.shadow.camera.near = 0.5; key.shadow.camera.far = 12;
 key.shadow.camera.left = -3; key.shadow.camera.right = 3; key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
-key.shadow.bias = -0.0005;                                       // gegen Shadow-Acne auf den Zylindern
+key.shadow.bias = -0.0005;                                       // gegen Shadow-Acne auf den Fingern
 const rim = new THREE.DirectionalLight(0xbcd4e6, 0.5);
 rim.position.set(-1.6, 1.4, -2.6);
-scene.add(new THREE.AmbientLight(0xffffff, 0.6), key, rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.25), key, rim);     // Ambient nur als Rest-Fill — die Env übernimmt
 const viewport = $('hand-viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;              // filmische Kurve statt Clipping auf der Clearcoat-Shell
+renderer.toneMappingExposure = 1.05;
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;   // PBR-Reflexe ohne HDR-Asset
 viewport.appendChild(renderer.domElement);
 hand.attachTo(scene);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enablePan = false;                                      // nur Rotieren + Zoom
 controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.7;      // Idle-Bühnendreher — erste Nutzer-Interaktion stoppt ihn
+controls.addEventListener('start', () => { controls.autoRotate = false; });
 controls.target.set(0, 0, -0.15); controls.update();
 function sizeRenderer(): void {
   const w = viewport.clientWidth || 480;                          // an den Pane gemessen; Fallback falls Layout noch 0
@@ -134,10 +143,12 @@ setDetectorProgressListener(({ state, pct, msg }) => {
 // Erfolg: der Reflex-Pfad ersetzt den Label-Lookup durch das CNN. Fehler: Badge bleibt auf Lookup-Baseline,
 // analyzeDetailedWithStudent fällt via studentReady()===false ohnehin auf den Lookup zurück (die FSM merkt nichts).
 const edgeBadge = $('edge-badge');
+edgeBadge.dataset.tone = 'muted';                                 // Ladephase neutral; ok/warn erst nach dem Ergebnis
 void loadStudent().then(
-  () => { edgeBadge.textContent = '2,2-Mio-Reflex: CNN aktiv'; },
+  () => { edgeBadge.textContent = '2,2-Mio-Reflex: CNN aktiv'; edgeBadge.dataset.tone = 'ok'; },
   (err: unknown) => {
     edgeBadge.textContent = '2,2-Mio-Reflex: Lookup-Baseline (Fallback)';
+    edgeBadge.dataset.tone = 'warn';
     beam('student-load-error', { msg: String((err as { message?: unknown })?.message ?? err) });
   },
 );
@@ -171,7 +182,10 @@ function apply(out: ReturnType<GraspFsm['dispatch']>): void {
   }
   if (out.command === 'open') hand.open();
   if (out.note === 'refusal-low-confidence' || out.note === 'no-grasp') log.mark('refusal', performance.now());
-  $('fsm-state').textContent = out.note ? `${out.state} · ${out.note}` : out.state;
+  const fsmBadge = $('fsm-state');
+  fsmBadge.textContent = out.note ? `${out.state} · ${out.note}` : out.state;
+  fsmBadge.dataset.tone = out.state === 'GRASP' ? 'ok'            // Zustand zusätzlich tonal (Text bleibt der Träger)
+    : out.state === 'ARMED' || out.state === 'PRESHAPE' ? 'accent' : 'muted';
   renderStates(hudStatesEl, out.state);
   beam('fsm', { state: out.state, command: out.command, note: out.note });
 }
@@ -219,6 +233,7 @@ async function runSnapshot(source: string, draw: (ctx: CanvasRenderingContext2D)
     hypothesisEl.textContent = detectorStatus.state === 'failed'
       ? detectorErrorText(detectorStatus.msg)                     // konkrete Meldung statt generischem Text (Listener kann von analyzeSnapshot überschrieben werden)
       : `${h.objectLabel ?? '?'} → ${h.grip}/${h.force} @ ${h.confidence.toFixed(2)}${h.via === 'cnn' ? ' · CNN' : ''}`;
+    hypothesisEl.dataset.tone = detectorStatus.state === 'failed' ? 'warn' : 'accent';   // Ergebnis = Hero-Gold, Fehler = Warnton
     drawOverlay(ctx, res.ranked, res.chosenIdx, h.contactPoint);  // Tracking-Boxen NACH dem Bild aufs #snap-Canvas
     canvas.hidden = false;                                        // annotiertes Standbild sichtbar (im lokalen Demo sonst Offscreen-Buffer)
     applyGatesForDetector(activeGating, res.detector ?? 'rtdetr'); // Gates aufs tatsächliche Backend kalibrieren: lokal = rtdetr, Studio-/infer meist OVD (Scores liegen tiefer)
@@ -470,6 +485,7 @@ async function applyStudioDetections(dets: Detection[], w: number, h: number, ms
   }
   const h2 = res.hypothesis;
   hypothesisEl.textContent = `${h2.objectLabel ?? '?'} → ${h2.grip}/${h2.force} @ ${h2.confidence.toFixed(2)}${h2.via === 'cnn' ? ' · CNN' : ''}`;
+  hypothesisEl.dataset.tone = 'accent';
   hypothesisEl.title = '';                                         // frischer Frame → evtl. alten Cortex/Edge-Tooltip löschen
   drawOverlay(snap.getContext('2d')!, res.ranked, res.chosenIdx, h2.contactPoint, lastCortexLabel); // Boxen NACH dem Frame-Bild; Cortex-Chip erst nach dem Cortex-Event
   if (ms != null) tiles.detectorMs = ms;                           // Detektor-Tile aus der Frame-ms des Servers
