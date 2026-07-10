@@ -9,7 +9,7 @@ const FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'] as const;
 
 /** Blender-gebautes Prothesen-Modell (web/scripts/blender/hand_build.py) — geriggt + geskinnt,
  *  Bones `{finger}_{glied}`, Materialien by name (shell/joint/lens). Selbes Weltmaß wie das alte Rig. */
-const MODEL_URL = '/models/hand/ayaka-hand.glb';
+const MODEL_URL = `${import.meta.env.BASE_URL}models/hand/ayaka-hand.glb`;
 
 /** Ladefehler sichtbar machen: Konsole + CustomEvent (main.ts beamt + zeigt Warn-Badge) —
  *  eine leere Bühne ohne Signal wäre der schlimmste Demo-Fehlermodus. */

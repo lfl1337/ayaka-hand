@@ -17,7 +17,7 @@ export function isAppleWebkit(): boolean {
   return isAppleVendor && notOtherBrowser;
 }
 
-const ORT_BASE = '/ort/';
+const ORT_BASE = `${import.meta.env.BASE_URL}ort/`;
 
 /** Exaktes self-hosted Datei-Paar für diese Browser-Klasse (kein CDN beim Judge).
  *  Als {mjs,wasm}-Objekt, damit transformers.js den Binary vorab same-origin cached. */

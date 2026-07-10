@@ -8,7 +8,7 @@ import { ORT_NUM_THREADS, ortWasmPaths } from './ortEnv';
 import type { Detection } from './ranking';
 import { IMAGENET_MEAN, IMAGENET_STD, STUDENT_FORCES, STUDENT_GRIPS, cropPlan, softmax } from './studentGeom';
 
-const MODEL_URL = '/models/student/student.onnx';
+const MODEL_URL = `${import.meta.env.BASE_URL}models/student/student.onnx`;
 const SIZE = 160;
 
 // Self-hosted ORT-WASM (Judge-Regel: Demo darf nicht am CDN hängen). Der Student teilt sich den

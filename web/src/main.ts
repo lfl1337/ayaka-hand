@@ -172,7 +172,7 @@ window.addEventListener('ayaka:hand-model-error', (e) => {
 // --- Trigger + Chart ---
 const chart = new StripChart(($('emg') as HTMLCanvasElement).getContext('2d')!, CONFIG.onset.tHigh, CONFIG.onset.tLow);
 let trigger: ReplayTrigger | undefined;
-fetch('/replay/synthetic-emg.json').then((r) => r.json()).then((j) => {
+fetch(`${import.meta.env.BASE_URL}replay/synthetic-emg.json`).then((r) => r.json()).then((j) => {
   trigger = new ReplayTrigger(j.samples, CONFIG.onset);
   trigger.onGo((tMs) => {
     reflexT0 = performance.now();                                // Start der GO→Griff-Messung (Ende: direkt nach hand.close)
