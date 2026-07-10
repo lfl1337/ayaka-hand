@@ -208,7 +208,9 @@ Nothing in this repository should be read as a claim that ayaka-hand keeps a use
 
 ## License
 
-**No license has been chosen yet.** This is an open decision for the project owner and is intentionally *not* set here — partly because the training data includes CC BY-SA (ShareAlike) source material, which interacts with license choice for any redistributed derivative. Until a `LICENSE` file is added, **all rights are reserved by default**; treat the code as source-available for review, not yet as OSI-licensed open source.
+Code and documentation are licensed under the **[Apache License 2.0](LICENSE)**.
+
+The license covers this repository's contents only. The training images themselves are **not distributed here** — they derive from license-filtered COCO 2017 source photos (CC BY 2.0 / CC BY-SA 2.0) and are reproducible via the shipped manifests and recipe, with per-image attribution preserved (see the training-data section above).
 
 ## Acknowledgements
 
