@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/ayaka-hand/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ayaka-hand — edge reflex demo</title>
+    <script type="module" crossorigin src="/ayaka-hand/assets/index-arMIvMwc.js"></script>
+    <link rel="stylesheet" crossorigin href="/ayaka-hand/assets/index-DK_uoeT9.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="wordmark">⚡ ayaka-hand</span>
+      <span class="tagline">edge reflex demo — der Griff formt sich vor dem Kontakt</span>
+    </header>
+    <main class="grid">
+      <section class="pane" id="snapshot-pane">
+        <h2>1 · Sehen</h2>
+        <video id="cam" autoplay playsinline muted></video>
+        <canvas id="snap" width="640" height="480" hidden></canvas>
+        <div class="row">
+          <button id="btn-snapshot">Snapshot</button>
+          <input type="file" id="file-pick" accept="image/*" capture="environment" />
+        </div>
+        <div id="hypothesis" class="badge">–</div>
+      </section>
+      <section class="pane" id="hand-pane">
+        <h2>2 · Formen</h2>
+        <div id="hand-viewport"></div>
+        <div class="row">
+          <span id="fsm-state" class="badge">IDLE</span>
+          <span id="edge-badge" class="badge">2,2-Mio-Reflex: lädt…</span>
+        </div>
+      </section>
+      <section class="pane" id="trigger-pane">
+        <h2>3 · Wollen</h2>
+        <canvas id="emg" width="600" height="140"></canvas>
+        <div class="row">
+          <label>Rauschen <input type="range" id="noise" min="0" max="0.3" step="0.01" value="0" /></label>
+          <button id="btn-mode">Modus: ayaka</button>
+          <button id="btn-cycle" hidden>Griff wechseln</button>
+          <button id="btn-release">Loslassen</button>
+          <a id="eval-dl" download="eval.json" href="#">Eval-JSON</a>
+        </div>
+        <p class="fineprint">EMG: synthetische Demo-Trace (Tag 2) · Replay, kein Live-Signal · Rohsignal (Detektor glättet intern)</p>
+      </section>
+      <section class="pane" id="hud-pane">
+        <h2>4 · Status</h2>
+        <div class="row"><button id="btn-cortex" hidden>Cortex: AN</button></div>
+        <div id="hud-states" class="hud-states"></div>
+        <div id="hud-conf" class="hud-conf"></div>
+        <div id="hud-tiles" class="hud-tiles"></div>
+        <div id="hud-feed" class="hud-feed"></div>
+      </section>
+      <section class="pane cortex-pane" id="cortex-pane" hidden>
+        <h2>Cortex (Qwen3-VL)</h2>
+        <div id="cortex-body" class="cortex-body"></div>
+      </section>
+    </main>
+  </body>
+</html>
