@@ -10,6 +10,11 @@
     <header class="topbar">
       <span class="wordmark">⚡ ayaka-hand</span>
       <span class="tagline">edge reflex demo — der Griff formt sich vor dem Kontakt</span>
+      <button id="btn-qr" type="button" aria-label="QR-Code zum Öffnen auf dem Handy anzeigen">📱</button>
+      <div id="qr-popover" class="qr-popover" hidden>
+        <canvas id="qr-canvas" width="200" height="200"></canvas>
+        <p id="qr-url" class="qr-url"></p>
+      </div>
     </header>
     <main class="grid">
       <section class="pane" id="snapshot-pane">

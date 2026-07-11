@@ -18,6 +18,7 @@ import { ReplayTrigger } from './trigger/replay';
 import { ManualMode } from './ui/manualMode';
 import { StripChart } from './ui/stripchart';
 import { drawOverlay } from './ui/overlay';
+import { initQrShare } from './ui/qrShare';
 import { type FeedItem, type TileModel, pushEvent, renderConfMeter, renderFeed, renderStates, renderTiles } from './ui/hud';
 import { initTelemetry, onLocalEvent } from './telemetry';
 
@@ -30,6 +31,7 @@ const fsm = new GraspFsm(activeGating);
 const hand = new ThreeHand(CONFIG.hand);
 const log = new EvalLogger();
 const beam = initTelemetry();                 // Netzwerk-POST opt-in (?live=1); lokaler Fan-out läuft immer
+initQrShare($('btn-qr'), $('qr-popover'), $('qr-canvas'));
 
 // --- HUD (Pane 4 · Status) — Feed abonniert JEDES gebeamte Event, auch ohne ?live=1 ---
 const hudStatesEl = $('hud-states');
