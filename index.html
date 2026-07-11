@@ -5,13 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/ayaka-hand/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ayaka-hand — edge reflex demo</title>
-    <script type="module" crossorigin src="/ayaka-hand/assets/index-arMIvMwc.js"></script>
-    <link rel="stylesheet" crossorigin href="/ayaka-hand/assets/index-DK_uoeT9.css">
+    <script type="module" crossorigin src="/ayaka-hand/assets/index-CN0gDQVE.js"></script>
+    <link rel="stylesheet" crossorigin href="/ayaka-hand/assets/index-4dK7jz9C.css">
   </head>
   <body>
     <header class="topbar">
       <span class="wordmark">⚡ ayaka-hand</span>
       <span class="tagline">edge reflex demo — der Griff formt sich vor dem Kontakt</span>
+      <button id="btn-qr" type="button" aria-label="QR-Code zum Öffnen auf dem Handy anzeigen">📱</button>
+      <div id="qr-popover" class="qr-popover" hidden>
+        <canvas id="qr-canvas" width="200" height="200"></canvas>
+        <p id="qr-url" class="qr-url"></p>
+      </div>
     </header>
     <main class="grid">
       <section class="pane" id="snapshot-pane">
