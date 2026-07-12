@@ -1,6 +1,6 @@
 # ayaka-hand
 
-**An open-source, AI-assisted hand/arm prosthesis that pre-shapes the grip *before* contact.**
+**An AI-assisted hand/arm prosthesis that pre-shapes the grip *before* contact — with a working, public in-browser demo.**
 
 A wrist camera looks at the object you are reaching for and forms the correct grasp on the way in — *vision-preshaping*. Your own muscle signal (EMG) is reduced to a single binary **GO** trigger: you decide *when* to close, the vision system decides *how*. The goal is to remove the moment-to-moment cognitive load that drives real-world prosthesis abandonment, at a target bill-of-materials cost of **~400 €** versus **15,000–95,000 €** for commercial myoelectric hands.
 
