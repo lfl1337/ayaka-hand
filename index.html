@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/ayaka-hand/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ayaka-hand — edge reflex demo</title>
-    <script type="module" crossorigin src="/ayaka-hand/assets/index-CN0gDQVE.js"></script>
+    <script type="module" crossorigin src="/ayaka-hand/assets/index-CP-w3EeE.js"></script>
     <link rel="stylesheet" crossorigin href="/ayaka-hand/assets/index-4dK7jz9C.css">
   </head>
   <body>
     <header class="topbar">
       <span class="wordmark">⚡ ayaka-hand</span>
-      <span class="tagline">edge reflex demo — der Griff formt sich vor dem Kontakt</span>
-      <button id="btn-qr" type="button" aria-label="QR-Code zum Öffnen auf dem Handy anzeigen">📱</button>
+      <span class="tagline">edge reflex demo — the grip forms before contact</span>
+      <button id="btn-qr" type="button" aria-label="Show QR code to open on your phone">📱</button>
       <div id="qr-popover" class="qr-popover" hidden>
         <canvas id="qr-canvas" width="200" height="200"></canvas>
         <p id="qr-url" class="qr-url"></p>
@@ -20,7 +20,7 @@
     </header>
     <main class="grid">
       <section class="pane" id="snapshot-pane">
-        <h2>1 · Sehen</h2>
+        <h2>1 · See</h2>
         <video id="cam" autoplay playsinline muted></video>
         <canvas id="snap" width="640" height="480" hidden></canvas>
         <div class="row">
@@ -30,28 +30,28 @@
         <div id="hypothesis" class="badge">–</div>
       </section>
       <section class="pane" id="hand-pane">
-        <h2>2 · Formen</h2>
+        <h2>2 · Shape</h2>
         <div id="hand-viewport"></div>
         <div class="row">
           <span id="fsm-state" class="badge">IDLE</span>
-          <span id="edge-badge" class="badge">2,2-Mio-Reflex: lädt…</span>
+          <span id="edge-badge" class="badge">2.2M reflex: loading…</span>
         </div>
       </section>
       <section class="pane" id="trigger-pane">
-        <h2>3 · Wollen</h2>
+        <h2>3 · Intent</h2>
         <canvas id="emg" width="600" height="140"></canvas>
         <div class="row">
-          <label>Rauschen <input type="range" id="noise" min="0" max="0.3" step="0.01" value="0" /></label>
-          <button id="btn-mode">Modus: ayaka</button>
-          <button id="btn-cycle" hidden>Griff wechseln</button>
-          <button id="btn-release">Loslassen</button>
+          <label>Noise <input type="range" id="noise" min="0" max="0.3" step="0.01" value="0" /></label>
+          <button id="btn-mode">Mode: ayaka</button>
+          <button id="btn-cycle" hidden>Cycle grip</button>
+          <button id="btn-release">Release</button>
           <a id="eval-dl" download="eval.json" href="#">Eval-JSON</a>
         </div>
-        <p class="fineprint">EMG: synthetische Demo-Trace (Tag 2) · Replay, kein Live-Signal · Rohsignal (Detektor glättet intern)</p>
+        <p class="fineprint">EMG: synthetic demo trace (day 2) · replay, not a live signal · raw signal (detector smooths internally)</p>
       </section>
       <section class="pane" id="hud-pane">
         <h2>4 · Status</h2>
-        <div class="row"><button id="btn-cortex" hidden>Cortex: AN</button></div>
+        <div class="row"><button id="btn-cortex" hidden>Cortex: ON</button></div>
         <div id="hud-states" class="hud-states"></div>
         <div id="hud-conf" class="hud-conf"></div>
         <div id="hud-tiles" class="hud-tiles"></div>
