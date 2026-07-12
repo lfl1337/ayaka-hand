@@ -204,7 +204,7 @@ Nothing in this repository should be read as a claim that ayaka-hand keeps a use
 - **Secrets** are read from a `.env` at the repo root (see `.env.example`). Never commit real keys.
 - **Browser WASM path**: the ONNX-Runtime loader has a separate code path for Apple WebKit (Safari uses the plain WASM build; other browsers use the asyncify build). Both are bundled, but Safari/iOS is the most fragile target — verify there first.
 - **Detector weights** for the server (LLMDet) are downloaded at runtime, not vendored.
-- Training/labeling actually ran on a local NVIDIA RTX 5090 (cu128); the pipeline's vLLM dialect also targets AMD (MI300X / ROCm) as a deployment path, not yet exercised on real MI300X hardware. CPU inference works but is slow.
+- Training/labeling actually ran on a local NVIDIA RTX 5090 (cu128). The pipeline's vLLM `guided_json` cortex dialect has been **validated end-to-end on real AMD hardware** — an AMD ROCm instance (RDNA3 / `gfx1100`, 48 GB, ROCm 7.2, vLLM 0.16, PyTorch 2.9 + HIP) served Qwen3-VL and returned schema-valid grasp JSON at ~4 s/request. This was **not** an MI300X (that class of card remains the larger-scale deployment target, not yet exercised); the validation confirms the ROCm serving path, not the MI300X-specific throughput. CPU inference works but is slow.
 
 ## License
 

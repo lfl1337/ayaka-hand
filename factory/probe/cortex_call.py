@@ -3,7 +3,7 @@
 One entry point, four structured-output dialects:
   fireworks : response_format={"type": "json_object", "schema": SCHEMA}
   openai    : response_format={"type": "json_schema", ...}
-  vllm      : extra_body={"guided_json": SCHEMA}           <- target path for MI300X/vLLM deployment
+  vllm      : extra_body={"guided_json": SCHEMA}           <- validated on AMD ROCm (RDNA3/gfx1100, vLLM 0.16); MI300X = target
   prefill   : assistant-prefill '{"object_label":' — bypasses inline thinking of
               reasoning models (Kimi K2.6 on Fireworks); JSON = prefill + completion.
 """
