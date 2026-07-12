@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>ayaka-hand — Kamera</title>
+    <title>ayaka-hand — Camera</title>
     <style>
       :root {
         --surface: #f5f4f1; --card: #fff; --text: #1d232a; --muted: #6b7178;
@@ -46,19 +46,19 @@
     </style>
   </head>
   <body>
-    <h1>ayaka-hand — Kamera</h1>
+    <h1>ayaka-hand — Camera</h1>
     <div class="card">
       <label class="capture">
         <span class="cam-icon">📷</span>
-        <span>Foto aufnehmen</span>
+        <span>Take photo</span>
         <input id="shot" type="file" accept="image/*" capture="environment" />
       </label>
       <div class="thumb-wrap">
-        <img id="thumb" alt="Letztes Foto" />
-        <span class="thumb-empty" id="thumb-empty">noch kein Foto</span>
+        <img id="thumb" alt="Last photo" />
+        <span class="thumb-empty" id="thumb-empty">no photo yet</span>
       </div>
       <div class="stats">
-        <div id="count">Gesendet: 0</div>
+        <div id="count">Sent: 0</div>
         <div id="result">–</div>
       </div>
       <div id="error"></div>
@@ -79,9 +79,9 @@
         var sent = 0;
 
         function describe(data) {
-          if (data == null) return 'gesendet (keine Antwortdaten)';
+          if (data == null) return 'sent (no response data)';
           var dets = Array.isArray(data) ? data : (data.detections || []);
-          if (!dets.length) return 'keine Objekte erkannt';
+          if (!dets.length) return 'no objects detected';
           var top = dets.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); })[0];
           var pct = Math.round((top.score || 0) * 100);
           var ms = (data && data.ms != null) ? ' · ' + Math.round(data.ms) + ' ms' : '';
@@ -92,7 +92,7 @@
           var file = input.files && input.files[0];
           if (!file) return;
           errorEl.textContent = '';
-          resultEl.textContent = 'sende…';
+          resultEl.textContent = 'sending…';
           thumb.src = URL.createObjectURL(file);
           thumbEmpty.style.display = 'none';
 
@@ -103,12 +103,12 @@
           }).then(function (res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             sent += 1;
-            countEl.textContent = 'Gesendet: ' + sent;
+            countEl.textContent = 'Sent: ' + sent;
             return res.json().catch(function () { return null; });   // Server darf leer antworten
           }).then(function (data) {
             resultEl.textContent = describe(data);
           }).catch(function (e) {
-            errorEl.textContent = 'Fehler: ' + (e && e.message ? e.message : String(e));
+            errorEl.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
             resultEl.textContent = '–';
           }).then(function () {
             input.value = '';                                        // gleiches Foto erneut aufnehmbar machen

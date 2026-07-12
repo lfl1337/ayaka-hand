@@ -74,9 +74,9 @@ export interface TileModel {
 /** Drei Stat-Tiles (Hero-Zahlen, Text-Tokens, keine Farbcodierung). */
 export function renderTiles(el: HTMLElement, m: TileModel): void {
   const tiles: readonly [string, string, string][] = [
-    ['Detektor', fmtMs(m.detectorMs), 'ms'],
-    ['Reflex GO→Griff', fmtMs(m.reflexMs), 'ms'],
-    ['Griff', m.grip || '–', ''],
+    ['Detector', fmtMs(m.detectorMs), 'ms'],
+    ['Reflex GO→grip', fmtMs(m.reflexMs), 'ms'],
+    ['Grip', m.grip || '–', ''],
   ];
   el.replaceChildren(...tiles.map(([label, value, unit]) => {
     const tile = document.createElement('div');

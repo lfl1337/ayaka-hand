@@ -123,12 +123,12 @@ window.addEventListener('resize', () => {
 
 // Detektor-Ladefehler menschenlesbar + auf ~80 Zeichen gekürzt für die Badge (voller Text geht per Telemetrie raus).
 const detectorErrorText = (msg?: string): string =>
-  msg ? `Detektor-Fehler: ${msg.slice(0, 80)}` : 'Detektor-Fehler — nochmal versuchen';
+  msg ? `Detector error: ${msg.slice(0, 80)}` : 'Detector error — try again';
 
 // --- Detektor-Ladefortschritt → Badge + Telemetrie (Sichtbarkeit statt Stille) ---
 setDetectorProgressListener(({ state, pct, msg }) => {
   if (state === 'loading') {
-    hypothesisEl.textContent = pct !== undefined ? `Modell lädt… ${pct} %` : 'Modell lädt…';
+    hypothesisEl.textContent = pct !== undefined ? `Model loading… ${pct} %` : 'Model loading…';
     if (pct !== undefined && pct >= lastBeamedPct + 10) { beam('detector', { state, pct }); lastBeamedPct = pct; }
   } else if (state === 'ready') {
     lastBeamedPct = -10;
@@ -148,15 +148,15 @@ setDetectorProgressListener(({ state, pct, msg }) => {
 const edgeBadge = $('edge-badge');
 edgeBadge.dataset.tone = 'muted';                                 // Ladephase neutral; ok/warn erst nach dem Ergebnis
 const studentWatchdog = window.setTimeout(() => {                 // hängender ONNX-Fetch (Promise settelt nie) → Badge darf nicht ewig „lädt…" zeigen;
-  edgeBadge.textContent = '2,2-Mio-Reflex: Lookup-Baseline (Student lädt noch…)';   // der Lookup-Reflexpfad läuft derweil längst (studentReady()-Fallback)
+  edgeBadge.textContent = '2.2M reflex: lookup baseline (student still loading…)';   // der Lookup-Reflexpfad läuft derweil längst (studentReady()-Fallback)
   edgeBadge.dataset.tone = 'warn';
   beam('student-load-timeout');
 }, 15_000);
 void loadStudent().then(
-  () => { window.clearTimeout(studentWatchdog); edgeBadge.textContent = '2,2-Mio-Reflex: CNN aktiv'; edgeBadge.dataset.tone = 'ok'; },
+  () => { window.clearTimeout(studentWatchdog); edgeBadge.textContent = '2.2M reflex: CNN active'; edgeBadge.dataset.tone = 'ok'; },
   (err: unknown) => {
     window.clearTimeout(studentWatchdog);
-    edgeBadge.textContent = '2,2-Mio-Reflex: Lookup-Baseline (Fallback)';
+    edgeBadge.textContent = '2.2M reflex: lookup baseline (fallback)';
     edgeBadge.dataset.tone = 'warn';
     beam('student-load-error', { msg: String((err as { message?: unknown })?.message ?? err) });
   },
@@ -164,10 +164,10 @@ void loadStudent().then(
 // Hand-Modell-Fehler (threeHand meldet per CustomEvent): sichtbar machen statt nur Konsole —
 // sonst steht beim Judging eine leere Bühne ohne jedes Signal, warum.
 window.addEventListener('ayaka:hand-model-error', (e) => {
-  const msg = String((e as CustomEvent).detail ?? 'unbekannt');
+  const msg = String((e as CustomEvent).detail ?? 'unknown');
   beam('hand-model-error', { msg });
   const fsmBadge = $('fsm-state');
-  fsmBadge.textContent = `Hand-Modell fehlt: ${msg.slice(0, 60)}`;
+  fsmBadge.textContent = `Hand model missing: ${msg.slice(0, 60)}`;
   fsmBadge.dataset.tone = 'warn';
 });
 
@@ -324,14 +324,14 @@ function cortexMessage(text: string, cls = 'cortex-pending'): void {
   const p = document.createElement('div'); p.className = cls; p.textContent = text;
   cortexBody.replaceChildren(p);
 }
-function renderCortexPending(): void { cortexPane.classList.remove('is-dead'); cortexMessage('Cortex denkt…'); }
-function renderCortexIdle(): void { cortexPane.classList.remove('is-dead'); cortexMessage('Cortex bereit — wartet auf Snapshot'); }
-function renderCortexError(msg: string): void { cortexPane.classList.remove('is-dead'); cortexMessage(`Cortex-Fehler: ${msg}`, 'cortex-rationale'); }
+function renderCortexPending(): void { cortexPane.classList.remove('is-dead'); cortexMessage('Cortex thinking…'); }
+function renderCortexIdle(): void { cortexPane.classList.remove('is-dead'); cortexMessage('Cortex ready — waiting for snapshot'); }
+function renderCortexError(msg: string): void { cortexPane.classList.remove('is-dead'); cortexMessage(`Cortex error: ${msg}`, 'cortex-rationale'); }
 /** Kill-Switch AUS: Panel grau/tot, Edge-Reflex läuft weiter. */
 function renderCortexDead(): void {
   cortexPane.classList.add('is-dead');
-  const badge = document.createElement('span'); badge.className = 'badge studio-dot'; badge.dataset.state = 'off'; badge.textContent = 'Cortex: getrennt';
-  const msg = document.createElement('div'); msg.className = 'cortex-dead-msg'; msg.textContent = '35-€-Edge-Reflex läuft weiter';
+  const badge = document.createElement('span'); badge.className = 'badge studio-dot'; badge.dataset.state = 'off'; badge.textContent = 'Cortex: disconnected';
+  const msg = document.createElement('div'); msg.className = 'cortex-dead-msg'; msg.textContent = '€35 edge reflex keeps running';
   cortexBody.replaceChildren(badge, msg);
 }
 /** Volles Ergebnis: Griff/Kraft/Kontakt-Chips, Hazards + Advisory-Fineprint, Objekt+Rationale, Edge→Cortex-Vergleich. */
@@ -339,13 +339,13 @@ function renderCortexResult(r: CortexResult): void {
   cortexPane.classList.remove('is-dead');
   const frag = document.createDocumentFragment();
   const chips = document.createElement('div'); chips.className = 'cortex-row';
-  chips.append(cortexChip('Griff', r.grip), cortexChip('Kraft', r.force), cortexChip('Kontakt', r.contact_region));
+  chips.append(cortexChip('Grip', r.grip), cortexChip('Force', r.force), cortexChip('Contact', r.contact_region));
   frag.append(chips);
   if (r.hazards.length) {
     const hz = document.createElement('div'); hz.className = 'cortex-row';
     for (const h of r.hazards) { const c = document.createElement('span'); c.className = 'cortex-hazard'; c.textContent = `⚠ ${h}`; hz.append(c); }
     frag.append(hz);
-    const fine = document.createElement('div'); fine.className = 'cortex-fineprint'; fine.textContent = '⚠ advisory insight — kein Sicherheitsfeature';
+    const fine = document.createElement('div'); fine.className = 'cortex-fineprint'; fine.textContent = '⚠ advisory insight — not a safety feature';
     frag.append(fine);
   }
   const obj = document.createElement('div'); obj.className = 'cortex-object'; obj.textContent = r.object_label; frag.append(obj);
@@ -364,7 +364,7 @@ function handleCortex(msg: CortexMessage): void {
     return;
   }
   if (!cortexOn) { renderCortexDead(); return; }               // Kill-Switch AUS: Panel tot, kein Dispatch
-  if (!msg.ok || !msg.result) { renderCortexError(msg.error ?? 'unbekannt'); return; }
+  if (!msg.ok || !msg.result) { renderCortexError(msg.error ?? 'unknown'); return; }
   const r = msg.result;
   renderCortexResult(r);
   beam('cortex', { label: r.object_label, grip: r.grip, force: r.force, hazards: r.hazards });
@@ -382,14 +382,14 @@ function handleCortex(msg: CortexMessage): void {
     hypothesisEl.title = lastEdge ? `Edge: ${lastEdge.label}/${lastEdge.grip}` : ''; // Edge-Herkunft als Tooltip erhalten
   } else if (fsm.state === 'GRASP') {                          // greift schon → HYPOTHESIS geschluckt (Drop-Safety); sagen, wie der neue Griff kommt
     const hint = document.createElement('div'); hint.className = 'cortex-fineprint';
-    hint.textContent = '(hält — „Loslassen" übernimmt neuen Griff)';
+    hint.textContent = '(holding — "Release" takes the new grip)';
     cortexBody.append(hint);
   }
 }
 /** Kill-Switch: rein lokal. AUS graut das Panel und stoppt den Dispatch; der Edge-Reflex läuft weiter. */
 function setCortexKill(on: boolean): void {
   cortexOn = on;
-  btnCortex.textContent = `Cortex: ${on ? 'AN' : 'AUS'}`;
+  btnCortex.textContent = `Cortex: ${on ? 'ON' : 'OFF'}`;
   if (on) renderCortexIdle(); else renderCortexDead();
   beam('kill-switch', { on });
 }
@@ -415,15 +415,15 @@ if (remoteEndpoint) {
   renderCortexIdle();
   btnCortex.addEventListener('click', () => setCortexKill(!cortexOn));
   const h2El = $('snapshot-pane').querySelector('h2');
-  if (h2El) h2El.textContent = 'Sehen (Studio: Handy-Kamera)';
+  if (h2El) h2El.textContent = 'See (Studio: phone camera)';
   const studioDot = document.createElement('span');
   studioDot.className = 'badge studio-dot';
   studioDot.dataset.state = 'off';
-  studioDot.textContent = 'Studio: getrennt';
+  studioDot.textContent = 'Studio: disconnected';
   h2El?.appendChild(studioDot);
   const setStudio = (connected: boolean): void => {
     studioDot.dataset.state = connected ? 'on' : 'off';
-    studioDot.textContent = connected ? 'Studio: verbunden' : 'Studio: getrennt';
+    studioDot.textContent = connected ? 'Studio: connected' : 'Studio: disconnected';
     beam('studio', { state: connected ? 'connected' : 'disconnected' });
   };
   const es = new EventSource(`${remoteEndpoint}/events`);
@@ -524,10 +524,10 @@ async function applyStudioDetections(dets: Detection[], w: number, h: number, ms
 const manual = new ManualMode();
 function setMode(on: boolean): void {
   manualOn = on;
-  $('btn-mode').textContent = `Modus: ${on ? 'manuell' : 'ayaka'}`;
+  $('btn-mode').textContent = `Mode: ${on ? 'manual' : 'ayaka'}`;
   btnCycle.hidden = !on;                                          // Zyklus-Button nur im manuellen Modus
   refreshInputs();                                               // Snapshot-Fluss im manuellen Modus deaktiviert
-  hypothesisEl.textContent = on ? 'Manueller Modus — Griff zyklen, dann GO' : '–';
+  hypothesisEl.textContent = on ? 'Manual mode — cycle grip, then GO' : '–';
   hypothesisEl.dataset.tone = 'muted';                           // Ton immer MIT dem Text setzen — sonst klebt das letzte accent/warn am Badge
 }
 $('btn-mode').addEventListener('click', () => setMode(!manualOn));

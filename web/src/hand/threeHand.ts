@@ -137,7 +137,7 @@ export class ThreeHand implements Hand {
           const rest: THREE.Quaternion[] = [];
           for (let s = 0; s < (f === 'thumb' ? 2 : 3); s++) {
             const b = gltf.scene.getObjectByName(`${f}_${s}`);
-            if (!b) { emitHandError(`bone ${f}_${s} fehlt — Rig unbrauchbar`); return; }
+            if (!b) { emitHandError(`bone ${f}_${s} missing — rig unusable`); return; }
             chain.push(b); rest.push(b.quaternion.clone());
           }
           chains.push(chain); rests.push(rest);
