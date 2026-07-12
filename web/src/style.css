@@ -35,6 +35,7 @@ body { margin: 0; background: var(--color-surface); color: var(--color-text); fo
 }
 .qr-popover[hidden] { display: none; }   /* [hidden] hat dieselbe Spezifität wie .qr-popover -- ohne das hier gewinnt die spätere Klassenregel gegen das UA-Default */
 .qr-popover canvas { width: 200px; height: 200px; border-radius: calc(var(--radius) - 4px); }
+.qr-caption { max-width: 220px; margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--color-text); text-align: center; }
 .qr-url { max-width: 220px; margin: 0; font-size: 0.72rem; color: var(--color-text-muted); word-break: break-all; text-align: center; }
 .grid { display: grid; gap: 1rem; padding: 1rem; grid-template-columns: 1fr; max-width: 1200px; margin-inline: auto; }
 @media (min-width: 768px) { .grid { grid-template-columns: repeat(2, 1fr); } }   /* 2×2: Panes 1–4 */

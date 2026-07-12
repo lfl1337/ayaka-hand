@@ -133,7 +133,7 @@ setDetectorProgressListener(({ state, pct, msg }) => {
   } else if (state === 'ready') {
     lastBeamedPct = -10;
     beam('detector', { state });
-    if (busy) hypothesisEl.textContent = 'analysiere…';           // Modell fertig, Snapshot läuft noch weiter
+    if (busy) hypothesisEl.textContent = 'Analyzing…';           // Modell fertig, Snapshot läuft noch weiter
   } else if (state === 'failed') {
     hypothesisEl.textContent = detectorErrorText(msg);
     beam('detector-error', { msg });                              // reale Ladefehler-Meldung ans Sink — sonst im Live-Gate unsichtbar (Fehler wird intern gefangen)
@@ -234,7 +234,7 @@ function beginEpisode(): void {
 }
 
 // --- Snapshot-Fluss ---
-navigator.mediaDevices?.getUserMedia({ video: { width: 640, height: 480 } })
+navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: 640, height: 480 } })   // Rückkamera bevorzugen (Handy blickt aufs Objekt); 'ideal' fällt am Desktop still auf die einzige Kamera zurück
   .then((s) => { video.srcObject = s; })
   .catch(() => hideWebcam());                                     // Kamera abgelehnt → Webcam-Pfad raus
 if (!navigator.mediaDevices?.getUserMedia) hideWebcam();          // kein Kamera-API → nur Datei-Picker anbieten
@@ -259,7 +259,7 @@ async function runSnapshot(source: string, draw: (ctx: CanvasRenderingContext2D)
     draw(ctx);
     log.mark('snapshot', performance.now());
     log.mark('control_action', performance.now());                // der EINE Klick
-    if (detectorStatus.state !== 'loading') hypothesisEl.textContent = 'analysiere…'; // Lade-% hat Vorrang
+    if (detectorStatus.state !== 'loading') hypothesisEl.textContent = 'Analyzing…'; // Lade-% hat Vorrang
     lastCortexLabel = undefined;                                  // neuer Snapshot → alten Cortex-Vergleichschip zurücksetzen
     lastFrameTs = undefined;                                      // VOR dem await: invalidiert in-flight Studio-Inferenz sofort — deren
                                                                   // post-await-Guard darf das frische lokale Foto nicht mehr überstempeln
@@ -282,7 +282,7 @@ filePick.addEventListener('change', async (e) => {
   try {
     bmp = await createImageBitmap(f);                             // dekodiert HEIC/große Handy-Fotos robuster als new Image()
   } catch {
-    hypothesisEl.textContent = 'Bildformat nicht lesbar — bitte JPEG';
+    hypothesisEl.textContent = 'Image format not readable — please use JPEG';
     beam('img-load-error', { type: f.type });
     return;
   }

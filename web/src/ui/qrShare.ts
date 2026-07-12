@@ -1,19 +1,31 @@
 // web/src/ui/qrShare.ts
 import * as QRCode from 'qrcode';
+import { getRemoteEndpoint } from '../remote';
 
-/** Aktuelle Seiten-URL für den Share-QR. `location`-Parameter statt direktem window.location-Zugriff --
- *  diese Codebase testet ohne DOM (vitest.config.ts: environment 'node', kein jsdom) und der Default
- *  wird nur im echten Browser ausgewertet (Default-Parameter sind lazy, evaluieren nur ohne Argument). */
-export function qrTargetUrl(location: { href: string } = window.location): string {
-  return location.href;
+type Loc = { href: string; origin: string; pathname: string };
+
+/** Ziel-URL für den Share-QR.
+ *  Studio-Modus (?remote=): der QR zeigt auf die leichtgewichtige `capture.html`. Das Handy wird
+ *  damit zur KAMERA, die per POST an /snap in die laufende Desktop-Session einspeist (Server → SSE),
+ *  statt eine zweite, eigenständige Demo zu öffnen. `?to=` trägt den Server DIESES Desktops, damit
+ *  das Handy ihn erreicht. Ohne Studio-Server gibt es keine Session zum Andocken → der QR öffnet die
+ *  Demo eigenständig auf dem Handy (dessen Rückkamera).
+ *  loc + remote sind injizierbar, weil diese Codebase ohne DOM testet (vitest environment 'node'). */
+export function qrTargetUrl(loc: Loc = window.location, remote: string | null = null): string {
+  if (remote) {
+    const dir = loc.pathname.replace(/[^/]*$/, '');            // Verzeichnis der aktuellen Seite (z.B. /ayaka-hand/)
+    return `${loc.origin}${dir}capture.html?to=${encodeURIComponent(remote)}`;
+  }
+  return loc.href;
 }
 
 /** Togglet den QR-Popover per Button-Klick, rendert den QR frisch bei jedem Öffnen (nie gecacht --
- *  URL kann sich durch Modus-Query-Params ändern). Schließen: erneuter Klick, Klick außerhalb, Escape.
+ *  Ziel-URL hängt vom Studio-Modus ab). Schließen: erneuter Klick, Klick außerhalb, Escape.
  *  DOM-Wiring wie renderStates/renderFeed in hud.ts -- bewusst ungetestet (jsdom kann Canvas nicht
  *  sinnvoll rendern), gleiches Muster wie overlay.ts in dieser Codebase. */
 export function initQrShare(button: HTMLButtonElement, popover: HTMLElement, canvas: HTMLCanvasElement): void {
   const urlEl = popover.querySelector<HTMLElement>('#qr-url');
+  const captionEl = popover.querySelector<HTMLElement>('#qr-caption');
 
   function close(): void {
     popover.hidden = true;
@@ -30,8 +42,14 @@ export function initQrShare(button: HTMLButtonElement, popover: HTMLElement, can
   }
 
   async function open(): Promise<void> {
-    const url = qrTargetUrl();
+    const remote = getRemoteEndpoint();
+    const url = qrTargetUrl(window.location, remote);
     if (urlEl) urlEl.textContent = url;
+    if (captionEl) {
+      captionEl.textContent = remote
+        ? 'Scan to use your phone as the camera'      // Studio: Handy → capture.html → Server → diese Session
+        : 'Scan to open the demo on your phone';       // kein Server: eigenständige Demo (Rückkamera)
+    }
     popover.hidden = false;
     try {
       await QRCode.toCanvas(canvas, url, { width: 200, margin: 1 });
