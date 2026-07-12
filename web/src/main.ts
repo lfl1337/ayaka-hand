@@ -289,6 +289,22 @@ filePick.addEventListener('change', async (e) => {
   await runSnapshot('file', (ctx) => { ctx.drawImage(bmp, 0, 0, 640, 480); bmp.close(); });
 });
 $('btn-release').addEventListener('click', () => { log.mark('release', performance.now()); beam('release-click'); apply(fsm.dispatch({ type: 'RELEASE_CMD' }, performance.now())); });
+// „Clear" räumt das Ergebnis-Readout auf einen sauberen Slate fürs nächste Objekt: Hand öffnen (wie Release),
+// Hero-Zeile + Meter/Tiles + Cortex-Panel + Edge→Cortex-Vergleich zurück auf Boot-Neutral, Standbild/Boxen weg.
+$('btn-clear').addEventListener('click', () => {
+  beam('clear');
+  apply(fsm.dispatch({ type: 'RELEASE_CMD' }, performance.now()));   // hält die Hand → öffnen; sonst No-op (RELEASE_CMD ist in jedem State sicher)
+  hypothesisEl.textContent = '–';                                     // Hero-Zeile neutral (Boot-Text)
+  delete hypothesisEl.dataset.tone;                                   // Gold/Warn-Ton weg
+  hypothesisEl.title = '';                                            // alten Edge/Cortex-Tooltip löschen
+  tiles.detectorMs = null; tiles.reflexMs = null; tiles.grip = '–';   // Tiles auf Boot-Neutral (wie Zeile 41)
+  renderTiles(hudTilesEl, tiles);
+  renderConfMeter(hudConfEl, 0, activeGating.tauSoft, activeGating.tauFull);  // Konfidenz-Meter auf 0
+  lastEdge = null; lastCortexLabel = undefined;                       // Vergleichszustand zurücksetzen
+  if (!cortexPane.hidden) { if (cortexOn) renderCortexIdle(); else renderCortexDead(); }  // Cortex-Panel (nur Studio sichtbar)
+  const snapCanvas = $('snap') as HTMLCanvasElement;                  // Standbild + Overlay-Boxen wegräumen → kohärenter Slate
+  snapCanvas.getContext('2d')?.clearRect(0, 0, snapCanvas.width, snapCanvas.height);
+});
 $('eval-dl').addEventListener('click', (e) => { (e.target as HTMLAnchorElement).href = `data:application/json,${encodeURIComponent(log.toJson())}`; });
 
 // --- Cortex (VLM) — der langsame, schlaue Zweitblick; überschreibt den Edge-Preshape per Soft-Lock ---
