@@ -4,7 +4,7 @@
 
 A wrist camera looks at the object you are reaching for and forms the correct grasp on the way in — *vision-preshaping*. Your own muscle signal (EMG) is reduced to a single binary **GO** trigger: you decide *when* to close, the vision system decides *how*. The goal is to remove the moment-to-moment cognitive load that drives real-world prosthesis abandonment.
 
-> **Status:** research prototype / hackathon submission (AMD Developer Hackathon, Act II). Not a medical device. See [Safety & hazard disclaimer](#safety--hazard-disclaimer).
+> **Status:** research prototype / hackathon submission (AMD Developer Hackathon, Act II). Not a medical device, and **no physical hand has been built yet** — the demo renders a simulated hand in the browser (three.js). See [Safety & hazard disclaimer](#safety--hazard-disclaimer).
 
 ---
 
@@ -42,7 +42,7 @@ The core design constraint is latency. A grasp must be committed within a **≤1
 
 **Cortex** (the teacher). A large vision-language model — [Qwen3-VL-32B-Instruct](https://huggingface.co/Qwen) (Apache-2.0) — reasons about object appearance and state and emits a structured grasp label (`grip`, `force`, `contact_region`, `contact_point`, `hazards`, `rationale`). It is used **offline** to label the training set, and in the live demo as a slower "second opinion" panel that appears a couple of seconds after the grasp. **It is never in the real-time control loop.**
 
-**Student** (the reflex). A **2,232,839-parameter** (≈ **2.23M**) MobileNetV2 with two heads (grip + force), distilled from the Cortex labels. This is the network that actually runs on the wrist camera in real time. It sees only pixels — no ground-truth class name, no object detector telling it "this is a cup." In the browser demo it runs as an 8.9 MB ONNX model via WebGPU/WASM.
+**Student** (the reflex). A **2,232,839-parameter** (≈ **2.23M**) MobileNetV2 with two heads (grip + force), distilled from the Cortex labels. This is the network that actually runs on the wrist camera in real time. It sees only pixels — no ground-truth class name, no object detector telling it "this is a cup." In the browser demo it runs as an 8.9 MB ONNX model via ONNX-Runtime Web on the **WASM** backend (WebGPU is deliberately disabled — it fails on several mobile browsers).
 
 **Schema v1 (frozen).** Grips: `[power, lateral, pinch, tripod, no_grasp]`. Forces: `[delicate, firm]`. The index order is load-bearing and identical across the Python schema, the TypeScript constants, and the ONNX metadata.
 
@@ -179,6 +179,8 @@ The teacher-labeled training set is derived from **COCO 2017** object crops (gro
 | 7 | No known copyright restrictions | 7 |
 | | **Total** | **11,617** (11,004 train / 613 val) |
 
+_(License ID 8 — US Government Work — is also whitelisted but matched no crops in these classes, so it is not listed above.)_
+
 > **Note on redistribution.** This repository **does not ship the COCO-derived crop images.** ~4,103 of them are CC **BY-SA** (a copyleft/ShareAlike term), and redistributing the pixels would entangle the whole dataset in ShareAlike obligations. Instead we ship, in `data/ayaka-crops/`:
 > - **`manifest-{train,val}2017.jsonl`** — per-crop attribution: source `flickr_url`, `coco_url`, `license`, COCO image/annotation IDs, and the bounding box. This is the full recipe to *reproduce* the exact crops.
 > - **`labels-{train,val}2017-backup.jsonl`** — the teacher-generated grip/force annotations (our own contribution).
@@ -204,7 +206,7 @@ Nothing in this repository should be read as a claim that ayaka-hand keeps a use
 - **Secrets** are read from a `.env` at the repo root (see `.env.example`). Never commit real keys.
 - **Browser WASM path**: the ONNX-Runtime loader has a separate code path for Apple WebKit (Safari uses the plain WASM build; other browsers use the asyncify build). Both are bundled, but Safari/iOS is the most fragile target — verify there first.
 - **Detector weights** for the server (LLMDet) are downloaded at runtime, not vendored.
-- Training/labeling actually ran on a local NVIDIA RTX 5090 (cu128). The pipeline's vLLM `guided_json` cortex dialect has been **validated end-to-end on real AMD hardware** — an AMD ROCm instance (RDNA3 / `gfx1100`, 48 GB, ROCm 7.2, vLLM 0.16, PyTorch 2.9 + HIP) served Qwen3-VL and returned schema-valid grasp JSON at ~4 s/request. This was **not** an MI300X (that class of card remains the larger-scale deployment target, not yet exercised); the validation confirms the ROCm serving path, not the MI300X-specific throughput. CPU inference works but is slow.
+- Training/labeling actually ran on a local NVIDIA RTX 5090 (cu128). The pipeline's vLLM `guided_json` cortex dialect has been **validated end-to-end on real AMD hardware** — an AMD ROCm instance (RDNA3 / `gfx1100`, 48 GB, ROCm 7.2, vLLM 0.16, PyTorch 2.9 + HIP) served Qwen3-VL (the **8B** variant — a proof of the serving path, not the full 32B Cortex) and returned schema-valid grasp JSON at ~4 s/request. This was **not** an MI300X (that class of card remains the larger-scale deployment target, not yet exercised); the validation confirms the ROCm serving path, not the MI300X-specific throughput. CPU inference works but is slow.
 
 ## License
 
